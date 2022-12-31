@@ -1,16 +1,17 @@
 #!/bin/bash
 
 inputFile="paths.txt"
-LOG_DIR="/mnt/user/storage/rsync_logs/"`date +"%m-%d-%Y"`""
+LOG_DIR="/mnt/user/logs/temp/"`date +"%m-%d-%Y"`""
 TRASH_PATH="/mnt/user/trash/"
 BACKUP_PATH="/mnt/disks/Backup"
 
 LOG_FILEPATH="$LOG_DIR"/data-backup2.txt""
 HAD_ERROR=0
 
-#Make backup directory if not exists
+#Make log directory if not exists
 mkdir -p "$LOG_DIR"
 
+# INPUT FILE FORMAT: input path alone (no extra space, commas, etc.) or inputpath,outputpath if you need to change the output for specific input paths
 file=$(cat $inputFile)
 declare paths=()
 
@@ -23,21 +24,34 @@ do
     ((index+=1))
 done
 
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+
 echo -e "Starting Backup..." >> "$LOG_FILEPATH"
 
 for path in ${paths[@]}; do 
 
+    pathArray=(`echo $path | tr ',' ' '`)
+
     echo -e "\n\n---------------------------------------------------------------------------------------------------------------------------------------------------" >> "$LOG_FILEPATH"
-    echo -e "\n-------- BACKING UP: $path ------------------------------------------------------------------------------------------------------------------------\n" >> "$LOG_FILEPATH"
+    echo -e "\n-------- BACKING UP: ${pathArray[0]} ------------------------------------------------------------------------------------------------------------------------\n" >> "$LOG_FILEPATH"
     echo -e "---------------------------------------------------------------------------------------------------------------------------------------------------\n\n" >> "$LOG_FILEPATH"
 
+    if [ ${#pathArray[@]} == 1 ]; then
+        SRC=${pathArray[0]}
+        DEST=$BACKUP_PATH
+    else
+        SRC=${pathArray[0]}
+        DEST=${pathArray[1]}
+    fi
+
     # Sync files between two locations, move differing/deleted items to trash directory
-    rsync -xavh --progress --delete --backup --backup-dir="$TRASH_PATH" "$path" "$BACKUP_PATH" &>> "$LOG_FILEPATH"
+    rsync -xavh --progress --delete --backup --backup-dir="$TRASH_PATH" "$SRC" "$DEST" &>> "$LOG_FILEPATH"
 
     # Send an error email if rsync exits with non 0 exit code.
     if [ $? -ne 0 ]; then
         HAD_ERROR=$?
-        /usr/local/emhttp/webGui/scripts/notify -e "Data Sync Status" -i alert -s "Data Sync Error!!!" -d "Error: rsync exited with error code $? while backup up $path"
+        /usr/local/emhttp/webGui/scripts/notify -e "Data Sync Status" -i alert -s "Data Sync Error!!!" -d "Error: rsync exited with error code $? while backup up ${pathArray[0]}"
     fi
 
 done
@@ -53,8 +67,8 @@ done
 #- Only remove directories if they are empty.
 #- /mnt/user/trash/* the wildcard (*) makes it so the root/src directory is ignored in this case /trash, so that /trash itself is not deleted by the xargs ... rm -rf
 
-find /mnt/user/trash/* -type f -ctime +30 | xargs -d '\n' rm -rf #Removes files present in trash longer than 30 days
-find /mnt/user/trash/* -empty | xargs -d '\n' rm -rf #Removes empty directories and files
+find "$TRASH_PATH"* -type f -ctime +30 | xargs -d '\n' rm -rf #Removes files present in trash longer than 30 days
+find "$TRASH_PATH"* -empty | xargs -d '\n' rm -rf #Removes empty directories and files
 echo -e "\nEmpty Trash Complete!" >> "$LOG_FILEPATH"
 
 echo -e "\n\nDone.\n" >> "$LOG_FILEPATH"

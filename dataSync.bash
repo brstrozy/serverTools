@@ -1,11 +1,11 @@
 #!/bin/bash
 
 inputFile="paths.txt"
-LOG_DIR="/mnt/user/logs/temp/"`date +"%m-%d-%Y"`""
+LOG_DIR="/mnt/user/logs/dataSync/"`date +"%m-%d-%Y"`""
 TRASH_PATH="/mnt/user/trash/"
 BACKUP_PATH="/mnt/disks/Backup"
 
-LOG_FILEPATH="$LOG_DIR"/data-backup2.txt""
+LOG_FILEPATH="$LOG_DIR"/data-backup.txt""
 HAD_ERROR=0
 
 #Make log directory if not exists

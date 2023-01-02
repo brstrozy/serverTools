@@ -1,7 +1,7 @@
 #!/bin/bash
 
-inputFile="paths.txt"
-LOG_DIR="/mnt/user/logs/dataSync/"`date +"%m-%d-%Y"`""
+inputFile="daily.txt"
+LOG_DIR="/mnt/user/logs/dailySync/"`date +"%m-%d-%Y"`""
 TRASH_PATH="/mnt/user/trash/"
 BACKUP_PATH="/mnt/disks/Backup"
 
@@ -51,7 +51,7 @@ for path in ${paths[@]}; do
     # Send an error email if rsync exits with non 0 exit code.
     if [ $? -ne 0 ]; then
         HAD_ERROR=$?
-        /usr/local/emhttp/webGui/scripts/notify -e "Data Sync Status" -i alert -s "Data Sync Error!!!" -d "Error: rsync exited with error code $? while backup up ${pathArray[0]}"
+        /usr/local/emhttp/webGui/scripts/notify -e "Daily Sync Status" -i alert -s "Daily Sync Error!!!" -d "Error: rsync exited with error code $? while backup up ${pathArray[0]}"
     fi
 
 done
@@ -78,5 +78,5 @@ echo -e "\n\nDone.\n" >> "$LOG_FILEPATH"
 
 #Send Completion Email if no errors occurred
 if [ $HAD_ERROR -eq 0 ]; then
-	/usr/local/emhttp/webGui/scripts/notify -e "Data Sync Status" -i normal -s "Data Sync Complete!"
+	/usr/local/emhttp/webGui/scripts/notify -e "Daily Sync Status" -i normal -s "Daily Sync Complete!"
 fi

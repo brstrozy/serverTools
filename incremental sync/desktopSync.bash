@@ -14,6 +14,7 @@
 INPUT_FILE="PATH"
 LOG_DIR="PATH/"`date +"%m-%d-%Y"`""
 TRASH_PATH="PATH"
+# IF NOT REMOTE DEST REMOVE -e 'ssh ...' from rsync command below in script
 BACKUP_PATH="PATH"
 
 LOG_FILEPATH="$LOG_DIR"/desktop-backup.txt""
@@ -27,7 +28,7 @@ HAD_ERROR=0
 mkdir -p "$LOG_DIR"
 
 # GET ARRAY OF PATHS FROM file
-readarray -t paths < $INPUT_FILE
+readarray -t paths < "$INPUT_FILE"
 
 #--------------------------------------------------------------------------------------------
 # BACKUP
@@ -36,37 +37,36 @@ readarray -t paths < $INPUT_FILE
 echo -e "Starting Backup..." >> "$LOG_FILEPATH"
 
 # BACK UP EACH DIRECTORY IN INPUT_FILE
-if [ $SKIP -eq 0 ]; then
-    for (( i=0; i<=${#paths[@]}; i++ )); do
-    
-        # SPLIT ROW INTO SRC AND DEST
-        path=$( ${paths[$i]} | sed 's/\r//g' )
-        pathArray=(`echo $path | tr ',' ' '`)
+for (( i=0; i<${#paths[@]}; i++ )); do
 
-        echo -e "\n\n---------------------------------------------------------------------------------------------------------------------------------------------------" >> "$LOG_FILEPATH"
-        echo -e "\n-------- BACKING UP: ${pathArray[0]} ------------------------------------------------------------------------------------------------------------------------\n" >> "$LOG_FILEPATH"
-        echo -e "---------------------------------------------------------------------------------------------------------------------------------------------------\n\n" >> "$LOG_FILEPATH"
+    # SPLIT ROW INTO SRC AND DEST
+    path=$( echo "${paths[$i]}" | sed 's/\r//g' )
+    pathArray=$(echo "$path" | tr ',' ' ')
 
-        # CHECK FOR CUSTOM DEST, OTHERWISE DEFAULT BACKUP PATH DEST USED
-        if [ ${#pathArray[@]} == 1 ]; then
-            SRC=${pathArray[0]}
-            DEST=$BACKUP_PATH
-        else
-            SRC=${pathArray[0]}
-            DEST=${pathArray[1]}
-        fi
+    echo -e "\n\n---------------------------------------------------------------------------------------------------------------------------------------------------" >> "$LOG_FILEPATH"
+    echo -e "\n-------- BACKING UP: ${pathArray[0]} ------------------------------------------------------------------------------------------------------------------------\n" >> "$LOG_FILEPATH"
+    echo -e "---------------------------------------------------------------------------------------------------------------------------------------------------\n\n" >> "$LOG_FILEPATH"
 
-        # Sync files between two locations, move differing/deleted items to trash directory
-        rsync -xavhi --delete --backup --backup-dir="$TRASH_PATH" "$SRC" "$DEST" &>> "$LOG_FILEPATH"
+    # CHECK FOR CUSTOM DEST, OTHERWISE DEFAULT BACKUP PATH DEST USED
+    if [ ${#pathArray[@]} == 1 ]; then
+        SRC=${pathArray[0]}
+        DEST=$BACKUP_PATH
+    else
+        SRC=${pathArray[0]}
+        DEST=${pathArray[1]}
+    fi
 
-        # Send an error email if rsync exits with non 0 exit code.
-        if [ $? -ne 0 ]; then
-            HAD_ERROR=$?
-            /usr/local/emhttp/webGui/scripts/notify -e "Desktop Sync Status" -i alert -s "Desktop Sync Error!!!" -d "Error: rsync exited with error code $? while backup up ${pathArray[0]}"
-        fi
+    # Sync files between two locations, move differing/deleted items to trash directory
+    rsync -xavhin -e 'ssh -p 5533 -i /home/brstrozy/.ssh/rsync/id_rsa' --delete --backup --backup-dir="$TRASH_PATH" "$SRC" "$DEST" &>> "$LOG_FILEPATH"
 
-    done
-fi
+    # Send an error email if rsync exits with non 0 exit code.
+    if [ $? -ne 0 ]; then
+        HAD_ERROR=$?
+        echo "Error: rsync exited with error code $? while backup up ${pathArray[0]}"
+        # /usr/local/emhttp/webGui/scripts/notify -e "Desktop Sync Status" -i alert -s "Desktop Sync Error!!!" -d "Error: rsync exited with error code $? while backup up ${pathArray[0]}"
+    fi
+
+done
 
 #Create some separation in the log file since this will be run quite frequently
 echo -e "\n\n\n\n\n" >> "$LOG_FILEPATH"
